@@ -1,0 +1,21 @@
+test_task:
+  description: >
+    Execute all tests and verify the implementation.
+
+    Feature: {feature_request}
+    Project path: {project_path}
+
+    Steps:
+    1. Read the project structure to understand testing setup
+    2. Install test dependencies if needed (pip install pytest, npm install, etc.)
+    3. Run the full test suite using ShellTool:
+       - Python: "pytest -v --tb=short --cov=. --cov-report=term-missing"
+       - Node: "npm test" or "jest --coverage"
+       - Other: detect and run the appropriate test command
+    4. If critical code paths have no tests, write them and run again
+    5. Analyze ALL failures — never skip or ignore failures
+
+    Return a TestOutput JSON with ALL results.
+  expected_output: >
+    A TestOutput JSON with passed (bool), total_tests (int),
+    failed_tests (int), failures (list of strings), coverage (float), feedback (str).

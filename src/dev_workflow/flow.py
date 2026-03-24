@@ -1,0 +1,249 @@
+"""
+Dev Workflow Flow
+=================
+Researcher → Planner → [Executor ⇄ Reviewer]* → [Tester → Executor ⇄ Reviewer]* → Deployer
+
+Architecture decision:
+  - Main phase transitions (research → plan → pipeline → deploy) use CrewAI events.
+  - Retry loops are imperative Python (while) inside two methods:
+      · execution_and_review_loop  — executor + reviewer retries
+      · testing_and_fix_loop       — tester + optional executor/reviewer fix cycles
+  This avoids the async cycle problem in CrewAI's event engine (which was designed
+  for DAGs, not cyclic graphs). The event-driven structure is preserved for the
+  high-level pipeline; retries are handled safely in Python.
+"""
+
+from crewai.flow.flow import Flow, start, listen, router
+from dev_workflow.state import DevWorkflowState
+from dev_workflow import emitter as _emit
+from dev_workflow.crews import (
+    ResearcherCrew,
+    PlannerCrew,
+    ExecutorCrew,
+    ReviewerCrew,
+    TesterCrew,
+    DeployerCrew,
+)
+
+_D = "=" * 60
+
+
+class DevWorkflowFlow(Flow[DevWorkflowState]):
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHASE 1 — Research
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @start()
+    def research_phase(self):
+        print(f"\n{_D}\n🔍 PHASE 1: Research\n{_D}")
+        self.state.log_phase("research_start")
+        _emit.emit(self.state.execution_id, "phase_started", "research", "Starting research phase")
+        result = ResearcherCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "project_path": self.state.project_path,
+        })
+        self.state.research_findings = result.raw
+        self.state.log_phase("research_end")
+        _emit.emit(self.state.execution_id, "phase_completed", "research", "Research complete")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHASE 2 — Planning
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @listen(research_phase)
+    def planning_phase(self):
+        print(f"\n{_D}\n📋 PHASE 2: Planning\n{_D}")
+        self.state.log_phase("planning_start")
+        _emit.emit(self.state.execution_id, "phase_started", "planning", "Creating implementation plan")
+        result = PlannerCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "research_findings": self.state.research_findings,
+            "project_path": self.state.project_path,
+        })
+        self.state.implementation_plan = result.raw
+        self.state.log_phase("planning_end")
+        _emit.emit(self.state.execution_id, "phase_completed", "planning", "Plan ready")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHASE 3+4 — Execution + Review loop
+    # Imperative while loop: avoids async cycle issues in CrewAI's event engine.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @listen(planning_phase)
+    def execution_and_review_loop(self):
+        while True:
+            self._run_executor()
+            self._run_reviewer()
+
+            if self.state.review_passed:
+                return  # @router will send to "do_test"
+
+            if self.state.retry_count >= self.state.max_retries:
+                self.state.errors.append(
+                    f"Review failed after {self.state.retry_count} attempts. "
+                    f"Last feedback: {self.state.review_feedback}"
+                )
+                self.state.log_phase("escalated")
+                return  # @router will send to "escalate"
+
+    @router(execution_and_review_loop)
+    def route_after_review(self):
+        if not self.state.review_passed:
+            return "escalate"
+        return "do_test"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHASE 5 — Testing + fix loop
+    # When tests fail: re-execute → re-review (must pass) → re-test.
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @listen("do_test")
+    def testing_and_fix_loop(self):
+        while True:
+            self._run_tester()
+
+            if self.state.tests_passed:
+                return  # @router will send to "do_deploy"
+
+            if self.state.test_retry_count >= self.state.max_test_retries:
+                self.state.errors.append(
+                    f"Tests failed after {self.state.test_retry_count} attempts. "
+                    f"Failures: {self.state.test_results}"
+                )
+                self.state.log_phase("escalated")
+                return  # @router will send to "escalate"
+
+            # Fix for test failures: re-run executor and reviewer before re-testing
+            self.state.review_feedback = ""
+            while True:
+                self._run_executor()
+                self._run_reviewer()
+
+                if self.state.review_passed:
+                    break  # inner loop OK → outer loop will re-run tests
+
+                if self.state.retry_count >= self.state.max_retries:
+                    self.state.errors.append(
+                        f"Review escalation during test fix after "
+                        f"{self.state.retry_count} attempts."
+                    )
+                    self.state.log_phase("escalated")
+                    return  # @router will send to "escalate"
+
+    @router(testing_and_fix_loop)
+    def route_after_tests(self):
+        if not self.state.tests_passed:
+            return "escalate"
+        return "do_deploy"
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PHASE 6 — Deployment
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @listen("do_deploy")
+    def deployment_phase(self):
+        print(f"\n{_D}\n🚀 PHASE 6: Deployment\n{_D}")
+        self.state.log_phase("deploy_start")
+        _emit.emit(self.state.execution_id, "phase_started", "deployment", "Deploying")
+        result = DeployerCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "project_path": self.state.project_path,
+        })
+        self.state.deployment_output = result.raw
+        self.state.deploy_succeeded = True
+        self.state.log_phase("deploy_end")
+        _emit.emit(self.state.execution_id, "phase_completed", "deployment", "Deployment successful")
+        print(f"\n✅ WORKFLOW COMPLETE — Deployment successful!")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # ESCALATION — max retries exhausted
+    # ─────────────────────────────────────────────────────────────────────────
+
+    @listen("escalate")
+    def escalate(self):
+        print(f"\n{_D}\n⚠️  ESCALATION: Max retries exhausted\n{_D}")
+        for err in self.state.errors:
+            print(f"  ERROR: {err}")
+        print(f"\n  Last review feedback : {self.state.review_feedback}")
+        print(f"  Last test results    : {self.state.test_results}")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Internal helpers (not Flow methods — no decorators)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _run_executor(self):
+        self.state.retry_count += 1
+        label = f"{self.state.retry_count}/{self.state.max_retries}"
+        print(f"\n{_D}\n💻 PHASE 3: Execution (attempt {label})\n{_D}")
+        if self.state.retry_count > 1:
+            print(f"  ♻️  Review feedback : {self.state.review_feedback or 'none'}")
+            print(f"  ♻️  Test failures   : {self.state.test_results or 'none'}")
+        self.state.log_phase(f"execution_start_attempt_{self.state.retry_count}")
+        _emit.emit(self.state.execution_id, "phase_started", "execution",
+                   f"Execution attempt {self.state.retry_count}/{self.state.max_retries}",
+                   {"retry_count": self.state.retry_count,
+                    "reviewer_feedback": self.state.review_feedback,
+                    "tester_feedback": self.state.test_results})
+        result = ExecutorCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "implementation_plan": self.state.implementation_plan,
+            "project_path": self.state.project_path,
+            "reviewer_feedback": self.state.review_feedback or "None — first implementation.",
+            "tester_feedback": self.state.test_results or "None — first implementation.",
+        })
+        self.state.code_summary = result.raw
+        self.state.log_phase(f"execution_end_attempt_{self.state.retry_count}")
+        _emit.emit(self.state.execution_id, "phase_completed", "execution",
+                   "Code written successfully")
+
+    def _run_reviewer(self):
+        print(f"\n{_D}\n🔎 PHASE 4: Code Review (attempt {self.state.retry_count})\n{_D}")
+        self.state.log_phase(f"review_start_attempt_{self.state.retry_count}")
+        _emit.emit(self.state.execution_id, "phase_started", "review",
+                   f"Code review attempt {self.state.retry_count}")
+        result = ReviewerCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "implementation_plan": self.state.implementation_plan,
+            "project_path": self.state.project_path,
+        })
+        review = result.pydantic  # ReviewOutput
+        self.state.review_passed = review.passed
+        self.state.review_feedback = review.feedback
+        status = "✅ PASSED" if review.passed else f"❌ FAILED (severity: {review.severity})"
+        print(f"\n  Review: {status}")
+        if not review.passed:
+            for i, issue in enumerate(review.issues, 1):
+                print(f"    {i}. {issue}")
+        self.state.log_phase(f"review_end_attempt_{self.state.retry_count}")
+        _emit.emit(self.state.execution_id,
+                   "phase_completed" if review.passed else "phase_failed",
+                   "review",
+                   f"Review {'passed' if review.passed else 'failed'}: {review.feedback[:120]}",
+                   {"passed": review.passed, "severity": review.severity,
+                    "issues": review.issues})
+
+    def _run_tester(self):
+        self.state.test_retry_count += 1
+        label = f"{self.state.test_retry_count}/{self.state.max_test_retries}"
+        print(f"\n{_D}\n🧪 PHASE 5: Testing (attempt {label})\n{_D}")
+        self.state.log_phase(f"testing_start_attempt_{self.state.test_retry_count}")
+        _emit.emit(self.state.execution_id, "phase_started", "testing",
+                   f"Test run {self.state.test_retry_count}/{self.state.max_test_retries}")
+        result = TesterCrew().crew().kickoff(inputs={
+            "feature_request": self.state.feature_request,
+            "project_path": self.state.project_path,
+        })
+        tests = result.pydantic  # TestOutput
+        self.state.tests_passed = tests.passed
+        self.state.test_results = tests.feedback
+        status = "✅ PASSED" if tests.passed else "❌ FAILED"
+        print(f"\n  Tests: {status} — {tests.total_tests} total, "
+              f"{tests.failed_tests} failed, {tests.coverage:.1f}% coverage")
+        self.state.log_phase(f"testing_end_attempt_{self.state.test_retry_count}")
+        _emit.emit(self.state.execution_id,
+                   "phase_completed" if tests.passed else "phase_failed",
+                   "testing",
+                   f"Tests {'passed' if tests.passed else 'failed'}: {tests.total_tests} total, {tests.failed_tests} failed",
+                   {"passed": tests.passed, "total": tests.total_tests,
+                    "failed": tests.failed_tests, "coverage": tests.coverage})

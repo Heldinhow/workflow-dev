@@ -1,0 +1,20 @@
+research_task:
+  description: >
+    Research the following feature request thoroughly:
+
+    Feature: {feature_request}
+    Project path: {project_path}
+
+    Investigate:
+    1. Existing patterns in the codebase (read the project files)
+    2. Best libraries/tools for this type of feature
+    3. Common pitfalls and edge cases
+    4. Security considerations
+    5. At least 2 alternative implementation approaches with tradeoffs
+
+    Synthesize everything into a technical brief.
+  expected_output: >
+    A structured technical research brief with: recommended approach,
+    library choices with justification, key edge cases to handle,
+    security considerations, and alternative approaches.
+  output_file: output/01_research.md

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dev-workflow"
+version = "0.1.0"
+description = "100% automated AI development workflow using CrewAI + MiniMax"
+requires-python = ">=3.11"
+dependencies = [
+    "crewai[tools]>=0.100.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+dev-workflow = "dev_workflow.main:run"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dev_workflow"]
+
+[tool.pytest.ini_options]
+python_classes = ["Test*Suite", "*Tests"]  # não coletar Pydantic models como test classes

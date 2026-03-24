@@ -1,0 +1,22 @@
+plan_task:
+  description: >
+    Create a detailed implementation plan based on the research.
+
+    Feature: {feature_request}
+    Research findings: {research_findings}
+    Project path: {project_path}
+
+    The plan MUST include:
+    1. List of files to create or modify (with exact paths)
+    2. All function/class signatures with types
+    3. Data models and schemas
+    4. Error handling strategy
+    5. At least 5 test cases (unit + integration)
+    6. Step-by-step implementation order
+    7. Dependencies to install (if any)
+
+    Save the plan to output/02_plan.md
+  expected_output: >
+    A complete, step-by-step implementation plan with file structure,
+    function signatures, data models, error handling, and test scenarios.
+  output_file: output/02_plan.md

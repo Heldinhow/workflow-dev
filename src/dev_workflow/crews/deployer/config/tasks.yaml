@@ -1,0 +1,22 @@
+deploy_task:
+  description: >
+    Deploy the validated and tested code.
+
+    Feature: {feature_request}
+    Project path: {project_path}
+
+    Deployment steps:
+    1. Check git status to see all changed files
+    2. Stage all relevant files (git add — specific files, never blindly -A)
+    3. Create a conventional commit: "feat: <description>"
+    4. Push to remote: git push origin HEAD
+    5. Create a Pull Request:
+       gh pr create --title "feat: {feature_request}" --body "<summary of changes>"
+    6. Run pre-deployment smoke tests if a staging environment exists
+    7. Report the PR URL and deployment status
+
+    If any step fails, report the error clearly — do NOT force push or bypass hooks.
+  expected_output: >
+    Deployment report with: commit hash, PR URL,
+    pre-deployment check results, and final deployment status.
+  output_file: output/06_deployment_report.md

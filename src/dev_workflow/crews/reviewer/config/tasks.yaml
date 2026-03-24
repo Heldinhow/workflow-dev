@@ -1,0 +1,25 @@
+review_task:
+  description: >
+    Review the implemented code thoroughly.
+
+    Feature: {feature_request}
+    Implementation plan: {implementation_plan}
+    Project path: {project_path}
+
+    Review checklist:
+    1. Run available linters using ShellTool (flake8, eslint, mypy, etc.)
+    2. Read ALL implemented files
+    3. Check correctness against the plan requirements
+    4. Check for security vulnerabilities (injection, XSS, hardcoded secrets)
+    5. Check error handling completeness
+    6. Check code style and documentation
+    7. Check that all plan requirements are implemented
+
+    Return a ReviewOutput JSON with:
+    - passed: true only if the code is production-ready with no major/critical issues
+    - severity: "none" | "minor" | "major" | "critical"
+    - issues: list of specific issues (numbered)
+    - feedback: actionable summary for the developer
+  expected_output: >
+    A ReviewOutput JSON object with passed (bool), severity (str),
+    issues (list of strings), and feedback (str).

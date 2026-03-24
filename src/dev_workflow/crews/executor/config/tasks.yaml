@@ -1,0 +1,26 @@
+coding_task:
+  description: >
+    Implement the feature according to the plan.
+
+    Feature: {feature_request}
+    Implementation plan: {implementation_plan}
+    Project path: {project_path}
+
+    --- FEEDBACK TO FIX (if any) ---
+    Code review feedback: {reviewer_feedback}
+    Test failures: {tester_feedback}
+    --------------------------------
+
+    Instructions:
+    1. Read existing project files first to understand the codebase
+    2. Follow the plan exactly — create/modify all specified files
+    3. If reviewer_feedback or tester_feedback is provided, fix EVERY issue listed
+    4. Write docstrings for all public functions and classes
+    5. Handle all error cases defined in the plan
+    6. Install any required dependencies first using ShellTool
+    7. Write the code to the project_path directory
+    8. After writing all files, run a quick syntax check with ShellTool
+  expected_output: >
+    A summary of all files created/modified, key implementation decisions,
+    and confirmation that the code is syntactically correct.
+  output_file: output/03_implementation_summary.md
