@@ -382,7 +382,26 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
                 pass
         return {}
 
+    @staticmethod
+    def _is_tool_call_json(text: str) -> bool:
+        """Detect if text is a tool call JSON (has 'tool' and 'args' keys)."""
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            return False
+        try:
+            obj = json.loads(match.group())
+            return "tool" in obj and "args" in obj
+        except json.JSONDecodeError:
+            return False
+
     def _parse_review(self, raw: str) -> dict:
+        if self._is_tool_call_json(raw):
+            return {
+                "passed": False,
+                "severity": "critical",
+                "issues": ["Reviewer returned tool call JSON instead of ReviewOutput"],
+                "feedback": f"Malformed review output: reviewer did not produce valid JSON. Got: {raw[:200]}",
+            }
         data = self._extract_json(raw)
         return {
             "passed": bool(data.get("passed", False)),
