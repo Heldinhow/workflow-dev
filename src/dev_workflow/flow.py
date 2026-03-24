@@ -200,6 +200,14 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         print(f"\n  Last review feedback : {self.state.review_feedback}")
         print(f"  Last test results    : {self.state.test_results}")
 
+        _emit.emit(
+            self.state.execution_id,
+            "execution_escalated",
+            "",
+            "Max retries exhausted — human intervention required",
+            {"errors": self.state.errors},
+        )
+
     # ─────────────────────────────────────────────────────────────────────────
     # Internal helpers (not Flow methods — no decorators)
     # ─────────────────────────────────────────────────────────────────────────
@@ -314,7 +322,7 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         project_path = Path(self.state.project_path)
         if not project_path.exists():
             print(f"⚠️  WARNING: project_path {project_path} does not exist")
-            return False
+            return True
         code_files = [
             f
             for f in project_path.rglob("*")
@@ -356,7 +364,7 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         self.state.log_phase(f"testing_end_attempt_{self.state.test_retry_count}")
         _emit.emit(
             self.state.execution_id,
-            "phase_completed" if tests.passed else "phase_failed",
+            "phase_completed" if tests["passed"] else "phase_failed",
             "testing",
             f"Tests {'passed' if tests['passed'] else 'failed'}: {tests['total_tests']} total, {tests['failed_tests']} failed",
             {

@@ -20,6 +20,10 @@ from dev_workflow.crews.tester.crew import TestOutput
 
 def _crew_result(raw: str = "OK", pydantic=None) -> MagicMock:
     r = MagicMock()
+    if pydantic is not None and raw == "OK":
+        import json
+
+        raw = json.dumps(pydantic.model_dump())
     r.raw = raw
     r.pydantic = pydantic
     return r
