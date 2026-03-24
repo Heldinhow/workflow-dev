@@ -11,16 +11,19 @@ coding_task:
     Test failures: {tester_feedback}
     --------------------------------
 
-    Instructions:
-    1. Read existing project files first to understand the codebase
-    2. Follow the plan exactly — create/modify all specified files
-    3. If reviewer_feedback or tester_feedback is provided, fix EVERY issue listed
-    4. Write docstrings for all public functions and classes
-    5. Handle all error cases defined in the plan
-    6. Install any required dependencies first using ShellTool
-    7. Write the code to the project_path directory
-    8. After writing all files, run a quick syntax check with ShellTool
+    CRITICAL INSTRUCTIONS:
+    1. You MUST use FileWriterTool to create every code file — do NOT skip any files
+    2. First, read existing project files with DirectoryReadTool to understand structure
+    3. Write ALL files listed in the implementation plan using FileWriterTool
+    4. After writing files, use ShellTool to verify syntax (e.g., `python -m py_compile <file>`)
+    5. Do NOT return until ALL files are created and verified
+    6. Install dependencies using ShellTool BEFORE writing code that needs them
+    7. Follow the plan exactly — create/modify all specified files
+    8. If reviewer_feedback or tester_feedback is provided, fix EVERY issue listed
+    9. Write docstrings for all public functions and classes
+    10. Handle all error cases defined in the plan
   expected_output: >
-    A summary of all files created/modified, key implementation decisions,
-    and confirmation that the code is syntactically correct.
-  output_file: output/03_implementation_summary.md
+    A detailed summary listing every file created/modified with paths,
+    and confirmation that all files pass syntax checks.
+    IMPORTANT: You must actually create the files using FileWriterTool,
+    not just describe what you would create.
