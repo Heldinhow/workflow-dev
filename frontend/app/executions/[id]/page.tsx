@@ -23,6 +23,7 @@ function elapsed(ex: Execution): string {
 export default function ExecutionDetail() {
   const { id }                          = useParams<{ id: string }>();
   const [execution, setExecution]       = useState<Execution | null>(null);
+  const [notFound, setNotFound]         = useState(false);
   const [events, setEvents]             = useState<WorkflowEvent[]>([]);
   const [connected, setConnected]       = useState(false);
   const [streamDone, setStreamDone]     = useState(false);
@@ -32,13 +33,14 @@ export default function ExecutionDetail() {
   // Fetch initial execution state
   useEffect(() => {
     fetch(`${API}/api/executions/${id}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => { if (!r.ok) { setNotFound(true); return null; } return r.json(); })
       .then(data => data && setExecution(data));
   }, [id]);
 
-  // SSE connection
+  // SSE connection — direct to backend to avoid Next.js proxy buffering
   useEffect(() => {
-    const es = new EventSource(`${API}/api/executions/${id}/events`);
+    const SSE_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const es = new EventSource(`${SSE_BASE}/api/executions/${id}/events`);
     esRef.current = es;
 
     es.onopen = () => setConnected(true);
@@ -122,6 +124,15 @@ export default function ExecutionDetail() {
     const t = setInterval(() => setElapsedStr(elapsed(execution!)), 1000);
     return () => clearInterval(t);
   }, [execution?.started_at, execution?.completed_at]);
+
+  if (notFound) {
+    return (
+      <div className="space-y-4">
+        <div className="text-sm text-zinc-600 font-mono">Execution not found.</div>
+        <Link href="/" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">← back to executions</Link>
+      </div>
+    );
+  }
 
   if (!execution) {
     return (

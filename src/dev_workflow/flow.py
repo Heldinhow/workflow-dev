@@ -13,6 +13,9 @@ Architecture decision:
   high-level pipeline; retries are handled safely in Python.
 """
 
+import json
+import re
+
 from crewai.flow.flow import Flow, start, listen, router
 from dev_workflow.state import DevWorkflowState
 from dev_workflow import emitter as _emit
@@ -39,7 +42,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         print(f"\n{_D}\n🔍 PHASE 1: Research\n{_D}")
         self.state.log_phase("research_start")
         _emit.emit(self.state.execution_id, "phase_started", "research", "Starting research phase")
-        result = ResearcherCrew().crew().kickoff(inputs={
+        _crew = ResearcherCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "project_path": self.state.project_path,
         })
@@ -56,7 +61,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         print(f"\n{_D}\n📋 PHASE 2: Planning\n{_D}")
         self.state.log_phase("planning_start")
         _emit.emit(self.state.execution_id, "phase_started", "planning", "Creating implementation plan")
-        result = PlannerCrew().crew().kickoff(inputs={
+        _crew = PlannerCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "research_findings": self.state.research_findings,
             "project_path": self.state.project_path,
@@ -146,7 +153,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         print(f"\n{_D}\n🚀 PHASE 6: Deployment\n{_D}")
         self.state.log_phase("deploy_start")
         _emit.emit(self.state.execution_id, "phase_started", "deployment", "Deploying")
-        result = DeployerCrew().crew().kickoff(inputs={
+        _crew = DeployerCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "project_path": self.state.project_path,
         })
@@ -185,7 +194,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
                    {"retry_count": self.state.retry_count,
                     "reviewer_feedback": self.state.review_feedback,
                     "tester_feedback": self.state.test_results})
-        result = ExecutorCrew().crew().kickoff(inputs={
+        _crew = ExecutorCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "implementation_plan": self.state.implementation_plan,
             "project_path": self.state.project_path,
@@ -202,26 +213,25 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         self.state.log_phase(f"review_start_attempt_{self.state.retry_count}")
         _emit.emit(self.state.execution_id, "phase_started", "review",
                    f"Code review attempt {self.state.retry_count}")
-        result = ReviewerCrew().crew().kickoff(inputs={
+        _crew = ReviewerCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "implementation_plan": self.state.implementation_plan,
             "project_path": self.state.project_path,
         })
-        review = result.pydantic  # ReviewOutput
-        self.state.review_passed = review.passed
-        self.state.review_feedback = review.feedback
-        status = "✅ PASSED" if review.passed else f"❌ FAILED (severity: {review.severity})"
+        review = self._parse_review(result.raw)
+        self.state.review_passed = review["passed"]
+        self.state.review_feedback = review["feedback"]
+        status = "✅ PASSED" if review["passed"] else f"❌ FAILED (severity: {review['severity']})"
         print(f"\n  Review: {status}")
-        if not review.passed:
-            for i, issue in enumerate(review.issues, 1):
-                print(f"    {i}. {issue}")
         self.state.log_phase(f"review_end_attempt_{self.state.retry_count}")
         _emit.emit(self.state.execution_id,
-                   "phase_completed" if review.passed else "phase_failed",
+                   "phase_completed" if review["passed"] else "phase_failed",
                    "review",
-                   f"Review {'passed' if review.passed else 'failed'}: {review.feedback[:120]}",
-                   {"passed": review.passed, "severity": review.severity,
-                    "issues": review.issues})
+                   f"Review {'passed' if review['passed'] else 'failed'}: {review['feedback'][:120]}",
+                   {"passed": review["passed"], "severity": review["severity"],
+                    "issues": review["issues"]})
 
     def _run_tester(self):
         self.state.test_retry_count += 1
@@ -230,20 +240,57 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         self.state.log_phase(f"testing_start_attempt_{self.state.test_retry_count}")
         _emit.emit(self.state.execution_id, "phase_started", "testing",
                    f"Test run {self.state.test_retry_count}/{self.state.max_test_retries}")
-        result = TesterCrew().crew().kickoff(inputs={
+        _crew = TesterCrew()
+        _crew.execution_id = self.state.execution_id
+        result = _crew.crew().kickoff(inputs={
             "feature_request": self.state.feature_request,
             "project_path": self.state.project_path,
         })
-        tests = result.pydantic  # TestOutput
-        self.state.tests_passed = tests.passed
-        self.state.test_results = tests.feedback
-        status = "✅ PASSED" if tests.passed else "❌ FAILED"
-        print(f"\n  Tests: {status} — {tests.total_tests} total, "
-              f"{tests.failed_tests} failed, {tests.coverage:.1f}% coverage")
+        tests = self._parse_tests(result.raw)
+        self.state.tests_passed = tests["passed"]
+        self.state.test_results = tests["feedback"]
+        status = "✅ PASSED" if tests["passed"] else "❌ FAILED"
+        print(f"\n  Tests: {status} — {tests['total_tests']} total, "
+              f"{tests['failed_tests']} failed, {tests['coverage']:.1f}% coverage")
         self.state.log_phase(f"testing_end_attempt_{self.state.test_retry_count}")
         _emit.emit(self.state.execution_id,
                    "phase_completed" if tests.passed else "phase_failed",
                    "testing",
-                   f"Tests {'passed' if tests.passed else 'failed'}: {tests.total_tests} total, {tests.failed_tests} failed",
-                   {"passed": tests.passed, "total": tests.total_tests,
-                    "failed": tests.failed_tests, "coverage": tests.coverage})
+                   f"Tests {'passed' if tests['passed'] else 'failed'}: {tests['total_tests']} total, {tests['failed_tests']} failed",
+                   {"passed": tests["passed"], "total": tests["total_tests"],
+                    "failed": tests["failed_tests"], "coverage": tests["coverage"]})
+
+    # ── JSON parsers (fallback-safe) ──────────────────────────────────────────
+
+    @staticmethod
+    def _extract_json(text: str) -> dict:
+        """Extract first JSON object from text (handles markdown code blocks)."""
+        # Strip markdown fences
+        text = re.sub(r"```(?:json)?\s*", "", text).strip()
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        return {}
+
+    def _parse_review(self, raw: str) -> dict:
+        data = self._extract_json(raw)
+        return {
+            "passed": bool(data.get("passed", False)),
+            "severity": str(data.get("severity", "unknown")),
+            "issues": list(data.get("issues", [])),
+            "feedback": str(data.get("feedback", raw[:500])),
+        }
+
+    def _parse_tests(self, raw: str) -> dict:
+        data = self._extract_json(raw)
+        return {
+            "passed": bool(data.get("passed", False)),
+            "total_tests": int(data.get("total_tests", 0)),
+            "failed_tests": int(data.get("failed_tests", 0)),
+            "failures": list(data.get("failures", [])),
+            "coverage": float(data.get("coverage", 0.0)),
+            "feedback": str(data.get("feedback", raw[:500])),
+        }

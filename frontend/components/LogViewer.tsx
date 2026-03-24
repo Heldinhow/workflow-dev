@@ -9,6 +9,7 @@ const EVENT_COLORS: Record<string, string> = {
   phase_failed:        "text-red-400",
   retry:               "text-amber-400",
   test_retry:          "text-amber-400",
+  agent_step:          "text-zinc-400",
   execution_completed: "text-emerald-300",
   execution_escalated: "text-amber-300",
   execution_failed:    "text-red-300",
