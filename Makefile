@@ -1,4 +1,4 @@
-.PHONY: api ui dev
+.PHONY: api ui dev docker-up docker-down docker-logs
 
 ROOT := $(shell git rev-parse --show-toplevel)
 
@@ -14,3 +14,12 @@ dev:
 	@echo "Start two terminals:"
 	@echo "  Terminal 1: make api"
 	@echo "  Terminal 2: make ui"
+
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
