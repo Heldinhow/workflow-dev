@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { Execution, WorkflowEvent } from "@/lib/types";
+import { useExecutionEvents } from "@/lib/sse";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PhaseTimeline } from "@/components/PhaseTimeline";
 import { LogViewer } from "@/components/LogViewer";
@@ -62,12 +63,68 @@ export default function ExecutionDetail() {
   const [execution, setExecution] = useState<Execution | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
-  const [connected, setConnected] = useState(false);
-  const [streamDone, setStreamDone] = useState(false);
   const [elapsedStr, setElapsedStr] = useState("0s");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const esRef = useRef<EventSource | null>(null);
+
+  const handleEvent = (event: WorkflowEvent) => {
+    setEvents((prev) => [...prev, event]);
+
+    setExecution((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+
+      if (event.type === "execution_started") {
+        updated.status = "running";
+        updated.started_at = event.timestamp;
+      } else if (event.type === "phase_started") {
+        updated.current_phase = event.phase as Execution["current_phase"];
+        updated.status = "running";
+        updated.phases = updated.phases.map((p) =>
+          p.name === event.phase ? { ...p, status: "running", started_at: event.timestamp } : p
+        );
+      } else if (event.type === "phase_completed") {
+        updated.phases = updated.phases.map((p) =>
+          p.name === event.phase
+            ? { ...p, status: "completed", completed_at: event.timestamp }
+            : p
+        );
+      } else if (event.type === "phase_failed") {
+        updated.phases = updated.phases.map((p) =>
+          p.name === event.phase
+            ? { ...p, status: "failed", completed_at: event.timestamp }
+            : p
+        );
+      } else if (event.type === "retry") {
+        updated.retry_count = (event.data.retry_count as number) || updated.retry_count;
+      } else if (event.type === "test_retry") {
+        updated.test_retry_count =
+          (event.data.test_retry_count as number) || updated.test_retry_count;
+      } else if (event.type === "execution_completed") {
+        updated.status = "completed";
+        updated.completed_at = event.timestamp;
+        updated.current_phase = null;
+      } else if (event.type === "execution_escalated") {
+        updated.status = "escalated";
+        updated.completed_at = event.timestamp;
+      } else if (event.type === "execution_failed") {
+        updated.status = "failed";
+        updated.completed_at = event.timestamp;
+      }
+      return updated;
+    });
+  };
+
+  const handleStreamEnd = () => {
+    fetch(`/api/executions/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setExecution(data));
+  };
+
+  const { connected, streamDone } = useExecutionEvents(id, {
+    onEvent: handleEvent,
+    onStreamEnd: handleStreamEnd,
+  });
 
   async function handleCancel() {
     setCancelling(true);
@@ -92,79 +149,6 @@ export default function ExecutionDetail() {
         return r.json();
       })
       .then((data) => data && setExecution(data));
-  }, [id]);
-
-  useEffect(() => {
-    const es = new EventSource(`/api/executions/${id}/events`);
-    esRef.current = es;
-
-    es.onopen = () => setConnected(true);
-
-    es.onmessage = (e) => {
-      const event: WorkflowEvent = JSON.parse(e.data);
-
-      if (event.type === "stream_end") {
-        setStreamDone(true);
-        es.close();
-        fetch(`/api/executions/${id}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => data && setExecution(data));
-        return;
-      }
-
-      setEvents((prev) => [...prev, event]);
-
-      setExecution((prev) => {
-        if (!prev) return prev;
-        const updated = { ...prev };
-
-        if (event.type === "execution_started") {
-          updated.status = "running";
-          updated.started_at = event.timestamp;
-        } else if (event.type === "phase_started") {
-          updated.current_phase = event.phase as Execution["current_phase"];
-          updated.status = "running";
-          updated.phases = updated.phases.map((p) =>
-            p.name === event.phase ? { ...p, status: "running", started_at: event.timestamp } : p
-          );
-        } else if (event.type === "phase_completed") {
-          updated.phases = updated.phases.map((p) =>
-            p.name === event.phase
-              ? { ...p, status: "completed", completed_at: event.timestamp }
-              : p
-          );
-        } else if (event.type === "phase_failed") {
-          updated.phases = updated.phases.map((p) =>
-            p.name === event.phase
-              ? { ...p, status: "failed", completed_at: event.timestamp }
-              : p
-          );
-        } else if (event.type === "retry") {
-          updated.retry_count = (event.data.retry_count as number) || updated.retry_count;
-        } else if (event.type === "test_retry") {
-          updated.test_retry_count =
-            (event.data.test_retry_count as number) || updated.test_retry_count;
-        } else if (event.type === "execution_completed") {
-          updated.status = "completed";
-          updated.completed_at = event.timestamp;
-          updated.current_phase = null;
-        } else if (event.type === "execution_escalated") {
-          updated.status = "escalated";
-          updated.completed_at = event.timestamp;
-        } else if (event.type === "execution_failed") {
-          updated.status = "failed";
-          updated.completed_at = event.timestamp;
-        }
-        return updated;
-      });
-    };
-
-    es.onerror = () => {
-      setConnected(false);
-      if (!streamDone) es.close();
-    };
-
-    return () => es.close();
   }, [id]);
 
   useEffect(() => {

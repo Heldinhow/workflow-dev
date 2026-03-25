@@ -182,8 +182,6 @@ export default function Dashboard() {
   useEffect(() => {
     setLoading(true);
     fetchAll();
-    const t = setInterval(fetchAll, 5000);
-    return () => clearInterval(t);
   }, [searchQuery, statusFilter]);
 
   async function startExecution() {
