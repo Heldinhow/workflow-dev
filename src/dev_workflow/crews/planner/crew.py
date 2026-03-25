@@ -8,11 +8,14 @@ from dev_workflow import emitter as _emit
 
 
 def _llm(temperature: float = 0.3) -> LLM:
+    from dev_workflow.interceptor import MiniMaxInterceptor
+
     return LLM(
-        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'MiniMax-M2.1')}",
+        model=os.getenv("MINIMAX_MODEL", "MiniMax-M2.1"),
         api_key=os.getenv("MINIMAX_API_KEY"),
         base_url=os.getenv("MINIMAX_API_BASE", "https://api.minimax.io/v1"),
         temperature=temperature,
+        interceptor=MiniMaxInterceptor(),
     )
 
 

@@ -68,7 +68,12 @@ export default function ExecutionDetail() {
   const [cancelling, setCancelling] = useState(false);
 
   const handleEvent = (event: WorkflowEvent) => {
-    setEvents((prev) => [...prev, event]);
+    setEvents((prev) => {
+      if (prev.some((e) => e.timestamp === event.timestamp && e.message === event.message)) {
+        return prev;
+      }
+      return [...prev, event];
+    });
 
     setExecution((prev) => {
       if (!prev) return prev;
@@ -148,7 +153,14 @@ export default function ExecutionDetail() {
         }
         return r.json();
       })
-      .then((data) => data && setExecution(data));
+      .then((data) => {
+        if (data) {
+          setExecution(data);
+          if (data.log && data.log.length > 0) {
+            setEvents(data.log);
+          }
+        }
+      });
   }, [id]);
 
   useEffect(() => {

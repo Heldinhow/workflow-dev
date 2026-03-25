@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WorkflowEvent } from "@/lib/types";
 import { Card } from "@/components/Card";
 
@@ -36,6 +36,15 @@ const PHASE_LABELS: Record<string, string> = {
   deployment: "DPL",
   "": "LOG",
 };
+
+const ALL_PHASES = [
+  { id: "research", label: "Research" },
+  { id: "planning", label: "Planning" },
+  { id: "execution", label: "Execution" },
+  { id: "review", label: "Review" },
+  { id: "testing", label: "Testing" },
+  { id: "deployment", label: "Deployment" },
+];
 
 function ts(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString("en", {
@@ -88,8 +97,14 @@ function EventIcon({ type, phase }: { type: string; phase: string }) {
   );
 }
 
-export function LogViewer({ events, autoScroll = true }: { events: WorkflowEvent[]; autoScroll?: boolean }) {
+export function LogViewer({ events, autoScroll = true, selectedPhases, onPhasesChange }: {
+  events: WorkflowEvent[];
+  autoScroll?: boolean;
+  selectedPhases?: string[];
+  onPhasesChange?: (phases: string[]) => void;
+}) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [localSelectedPhases, setLocalSelectedPhases] = useState<string[]>(selectedPhases || []);
 
   useEffect(() => {
     if (autoScroll && bottomRef.current) {
@@ -97,28 +112,99 @@ export function LogViewer({ events, autoScroll = true }: { events: WorkflowEvent
     }
   }, [events, autoScroll]);
 
+  const activePhases = selectedPhases !== undefined ? selectedPhases : localSelectedPhases;
+
+  const togglePhase = (phaseId: string) => {
+    const newPhases = activePhases.includes(phaseId)
+      ? activePhases.filter((p) => p !== phaseId)
+      : [...activePhases, phaseId];
+    
+    if (selectedPhases !== undefined) {
+      onPhasesChange?.(newPhases);
+    } else {
+      setLocalSelectedPhases(newPhases);
+    }
+  };
+
+  const filteredEvents = activePhases.length === 0
+    ? events
+    : events.filter((ev) => activePhases.includes(ev.phase));
+
   return (
     <Card padding="none" className="overflow-hidden">
       {/* Terminal header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-red-500/60" />
-            <span className="w-3 h-3 rounded-full bg-amber-500/60" />
-            <span className="w-3 h-3 rounded-full bg-emerald-500/60" />
+      <div className="flex flex-col gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-900/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-red-500/60" />
+              <span className="w-3 h-3 rounded-full bg-amber-500/60" />
+              <span className="w-3 h-3 rounded-full bg-emerald-500/60" />
+            </div>
+            <span className="ml-2 text-xs text-zinc-500 font-medium uppercase tracking-wider">
+              Execution Log
+            </span>
           </div>
-          <span className="ml-2 text-xs text-zinc-500 font-medium uppercase tracking-wider">
-            Execution Log
+          <span className="text-xs text-zinc-600 font-mono">
+            {filteredEvents.length} / {events.length} events
           </span>
         </div>
-        <span className="text-xs text-zinc-600 font-mono">
-          {events.length} events
-        </span>
+        {/* Phase filter chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_PHASES.map((phase) => {
+            const isActive = activePhases.includes(phase.id);
+            const phaseColor = PHASE_COLORS[phase.id] || "text-zinc-400";
+            return (
+              <button
+                key={phase.id}
+                onClick={() => togglePhase(phase.id)}
+                className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                  isActive
+                    ? `${phaseColor} border-current bg-current/10`
+                    : "text-zinc-500 border-zinc-700 hover:border-zinc-600"
+                }`}
+              >
+                {phase.label}
+              </button>
+            );
+          })}
+          {activePhases.length > 0 && (
+            <button
+              onClick={() => {
+                if (selectedPhases !== undefined) {
+                  onPhasesChange?.([]);
+                } else {
+                  setLocalSelectedPhases([]);
+                }
+              }}
+              className="px-2 py-0.5 text-xs rounded-full border border-zinc-700 text-zinc-500 hover:border-zinc-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Log content */}
       <div className="h-[500px] overflow-y-auto bg-zinc-950 font-mono text-xs log-scroll">
         <div className="p-4 space-y-1">
+          {filteredEvents.length === 0 && events.length > 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <p className="text-zinc-500 text-sm">No events match the selected filters</p>
+              <button
+                onClick={() => {
+                  if (selectedPhases !== undefined) {
+                    onPhasesChange?.([]);
+                  } else {
+                    setLocalSelectedPhases([]);
+                  }
+                }}
+                className="mt-2 text-xs text-indigo-400 hover:text-indigo-300"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
           {events.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-4">
@@ -130,7 +216,7 @@ export function LogViewer({ events, autoScroll = true }: { events: WorkflowEvent
               <p className="text-zinc-600 text-xs mt-1">Logs will appear here as the workflow runs</p>
             </div>
           )}
-          {events.map((ev, i) => {
+          {filteredEvents.map((ev, i) => {
             const color = EVENT_COLORS[ev.type] ?? "text-zinc-400";
             const phaseColor = PHASE_COLORS[ev.phase] ?? "text-zinc-500";
             const phaseLabel = PHASE_LABELS[ev.phase] ?? "LOG";

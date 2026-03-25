@@ -31,6 +31,18 @@ const CONFIG: Record<Status, { bg: string; text: string; ring: string; label: st
     ring: "ring-1 ring-amber-500/20",
     label: "Escalated"
   },
+  cancelled: {
+    bg: "bg-zinc-500/10",
+    text: "text-zinc-400",
+    ring: "ring-1 ring-zinc-500/20",
+    label: "Cancelled"
+  },
+  interrupted: {
+    bg: "bg-orange-500/10",
+    text: "text-orange-400",
+    ring: "ring-1 ring-orange-500/20",
+    label: "Interrupted"
+  },
 };
 
 function RunningDot() {
