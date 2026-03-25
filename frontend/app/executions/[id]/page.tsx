@@ -13,8 +13,6 @@ import { TokenUsageCard } from "@/components/TokenUsageCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/Card";
 import { Button } from "@/components/Button";
 
-const API = "";
-
 function elapsed(ex: Execution): string {
   if (!ex.started_at) return "—";
   const start = new Date(ex.started_at).getTime();
@@ -74,7 +72,7 @@ export default function ExecutionDetail() {
   async function handleCancel() {
     setCancelling(true);
     try {
-      const r = await fetch(`${API}/api/executions/${id}/cancel`, { method: "POST" });
+      const r = await fetch(`/api/executions/${id}/cancel`, { method: "POST" });
       if (r.ok) {
         setShowCancelModal(false);
         setExecution((prev) => prev ? { ...prev, status: "cancelled" } : prev);
@@ -85,7 +83,7 @@ export default function ExecutionDetail() {
   }
 
   useEffect(() => {
-    fetch(`${API}/api/executions/${id}`)
+    fetch(`/api/executions/${id}`)
       .then((r) => {
         if (!r.ok) {
           setNotFound(true);
@@ -97,8 +95,7 @@ export default function ExecutionDetail() {
   }, [id]);
 
   useEffect(() => {
-    const SSE_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-    const es = new EventSource(`${SSE_BASE}/api/executions/${id}/events`);
+    const es = new EventSource(`/api/executions/${id}/events`);
     esRef.current = es;
 
     es.onopen = () => setConnected(true);
@@ -109,7 +106,7 @@ export default function ExecutionDetail() {
       if (event.type === "stream_end") {
         setStreamDone(true);
         es.close();
-        fetch(`${API}/api/executions/${id}`)
+        fetch(`/api/executions/${id}`)
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => data && setExecution(data));
         return;

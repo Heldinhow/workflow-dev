@@ -9,8 +9,6 @@ import { Button, IconButton } from "@/components/Button";
 import { SearchBar } from "@/components/SearchBar";
 import { FilterDropdown } from "@/components/FilterDropdown";
 
-const API = "";
-
 function elapsed(ex: Execution): string {
   if (!ex.started_at) return "—";
   const start = new Date(ex.started_at).getTime();
@@ -173,7 +171,7 @@ export default function Dashboard() {
       if (searchQuery) params.set("search", searchQuery);
       if (statusFilter) params.set("status", statusFilter);
       const queryString = params.toString();
-      const url = `${API}/api/executions${queryString ? `?${queryString}` : ""}`;
+      const url = `/api/executions${queryString ? `?${queryString}` : ""}`;
       const r = await fetch(url);
       if (r.ok) setExecutions(await r.json());
     } finally {
@@ -192,7 +190,7 @@ export default function Dashboard() {
     if (!feature.trim()) return;
     setSubmitting(true);
     try {
-      const r = await fetch(`${API}/api/executions`, {
+      const r = await fetch(`/api/executions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
