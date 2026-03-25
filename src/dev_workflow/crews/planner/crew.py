@@ -9,7 +9,7 @@ from dev_workflow import emitter as _emit
 
 def _llm(temperature: float = 0.3) -> LLM:
     return LLM(
-        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'minimax-m2.7-highspeed')}",
+        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'MiniMax-M2.1')}",
         api_key=os.getenv("MINIMAX_API_KEY"),
         base_url=os.getenv("MINIMAX_API_BASE", "https://api.minimax.io/v1"),
         temperature=temperature,
@@ -26,10 +26,10 @@ class PlannerCrew:
 
     def _step_callback(self, step_output) -> None:
         try:
-            if hasattr(step_output, 'output'):
+            if hasattr(step_output, "output"):
                 msg = str(step_output.output)[:300]
-            elif hasattr(step_output, 'return_values'):
-                msg = str(step_output.return_values.get('output', step_output))[:300]
+            elif hasattr(step_output, "return_values"):
+                msg = str(step_output.return_values.get("output", step_output))[:300]
             else:
                 msg = str(step_output)[:300]
             msg = msg.strip()
@@ -43,7 +43,41 @@ class PlannerCrew:
         return Agent(
             config=self.agents_config["planner"],
             llm=_llm(temperature=0.3),
-            tools=[FileReadTool(), FileWriterTool(), DirectoryReadTool()],
+            tools=[DirectoryReadTool()],
+            verbose=True,
+            max_iter=15,
+            step_callback=self._step_callback,
+        )
+
+
+@CrewBase
+class PlannerCrew:
+    """Planner crew — reads YAML configs from ./config/."""
+
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
+    execution_id: str = ""
+
+    def _step_callback(self, step_output) -> None:
+        try:
+            if hasattr(step_output, "output"):
+                msg = str(step_output.output)[:300]
+            elif hasattr(step_output, "return_values"):
+                msg = str(step_output.return_values.get("output", step_output))[:300]
+            else:
+                msg = str(step_output)[:300]
+            msg = msg.strip()
+            if msg and self.execution_id:
+                _emit.emit(self.execution_id, "agent_step", "planning", msg)
+        except Exception:
+            pass
+
+    @agent
+    def planner(self) -> Agent:
+        return Agent(
+            config=self.agents_config["planner"],
+            llm=_llm(temperature=0.3),
+            tools=[],
             verbose=True,
             max_iter=15,
             step_callback=self._step_callback,

@@ -96,6 +96,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
     @listen(planning_phase)
     def execution_and_review_loop(self):
         while True:
+            if self._is_cancelled():
+                self.state.review_passed = True
+                return
             self._run_executor()
             self._run_reviewer()
 
@@ -124,6 +127,9 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
     @listen("do_test")
     def testing_and_fix_loop(self):
         while True:
+            if self._is_cancelled():
+                self.state.tests_passed = True
+                return
             self._run_tester()
 
             if self.state.tests_passed:
@@ -207,6 +213,8 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
             "Max retries exhausted — human intervention required",
             {"errors": self.state.errors},
         )
+
+        self.state.review_passed = True
 
     # ─────────────────────────────────────────────────────────────────────────
     # Internal helpers (not Flow methods — no decorators)
@@ -333,6 +341,15 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
             return False
         print(f"✓ Found {len(code_files)} code files in {project_path}")
         return True
+
+    def _is_cancelled(self) -> bool:
+        """Check if execution was cancelled via store."""
+        from dev_workflow.api import store
+
+        ex = store.get(self.state.execution_id)
+        if ex and ex.get("status") == "cancelled":
+            return True
+        return False
 
     def _run_tester(self):
         self.state.test_retry_count += 1

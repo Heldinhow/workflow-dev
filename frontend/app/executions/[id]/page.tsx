@@ -8,6 +8,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { PhaseTimeline } from "@/components/PhaseTimeline";
 import { LogViewer } from "@/components/LogViewer";
 import { RetryBadge } from "@/components/RetryBadge";
+import { CancelModal } from "@/components/CancelModal";
+import { TokenUsageCard } from "@/components/TokenUsageCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/Card";
 import { Button } from "@/components/Button";
 
@@ -65,7 +67,22 @@ export default function ExecutionDetail() {
   const [connected, setConnected] = useState(false);
   const [streamDone, setStreamDone] = useState(false);
   const [elapsedStr, setElapsedStr] = useState("0s");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const r = await fetch(`${API}/api/executions/${id}/cancel`, { method: "POST" });
+      if (r.ok) {
+        setShowCancelModal(false);
+        setExecution((prev) => prev ? { ...prev, status: "cancelled" } : prev);
+      }
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   useEffect(() => {
     fetch(`${API}/api/executions/${id}`)
@@ -251,7 +268,7 @@ export default function ExecutionDetail() {
             {/* Action buttons */}
             {isActive && (
               <div className="flex items-center gap-2">
-                <Button variant="danger" size="sm">
+                <Button variant="danger" size="sm" onClick={() => setShowCancelModal(true)}>
                   Cancel
                 </Button>
               </div>
@@ -323,11 +340,69 @@ export default function ExecutionDetail() {
               />
             </CardContent>
           </Card>
+
+          {/* Token usage */}
+          <TokenUsageCard tokenUsage={execution.token_usage || {}} />
+
+          {/* GitHub PR link */}
+          {execution.github_pr_url && (
+            <Card>
+              <CardHeader className="p-5 pb-0">
+                <CardTitle as="h3">Pull Request</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5">
+                <a
+                  href={execution.github_pr_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-400 hover:text-indigo-300 font-mono break-all"
+                >
+                  {execution.github_pr_url}
+                </a>
+                {execution.github_branch && (
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Branch: <span className="font-mono">{execution.github_branch}</span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Linear issue link */}
+          {execution.linear_issue_url && (
+            <Card>
+              <CardHeader className="p-5 pb-0">
+                <CardTitle as="h3">Linear Issue</CardTitle>
+              </CardHeader>
+              <CardContent className="p-5">
+                <a
+                  href={execution.linear_issue_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-purple-400 hover:text-purple-300 font-mono break-all"
+                >
+                  {execution.linear_issue_url}
+                </a>
+                {execution.linear_issue_id && (
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Issue ID: <span className="font-mono">{execution.linear_issue_id}</span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right column: log viewer */}
         <LogViewer events={events} autoScroll={isActive} />
       </div>
+
+      <CancelModal
+        isOpen={showCancelModal}
+        onConfirm={handleCancel}
+        onCancel={() => setShowCancelModal(false)}
+        executionId={id}
+      />
     </div>
   );
 }

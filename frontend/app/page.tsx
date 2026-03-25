@@ -6,6 +6,8 @@ import type { Execution } from "@/lib/types";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/Card";
 import { Button, IconButton } from "@/components/Button";
+import { SearchBar } from "@/components/SearchBar";
+import { FilterDropdown } from "@/components/FilterDropdown";
 
 const API = "";
 
@@ -159,11 +161,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [feature, setFeature] = useState("");
+  const [githubRepo, setGithubRepo] = useState("");
+  const [workspaceMode, setWorkspaceMode] = useState("sandbox");
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   async function fetchAll() {
     try {
-      const r = await fetch(`${API}/api/executions`);
+      const params = new URLSearchParams();
+      if (searchQuery) params.set("search", searchQuery);
+      if (statusFilter) params.set("status", statusFilter);
+      const queryString = params.toString();
+      const url = `${API}/api/executions${queryString ? `?${queryString}` : ""}`;
+      const r = await fetch(url);
       if (r.ok) setExecutions(await r.json());
     } finally {
       setLoading(false);
@@ -171,10 +182,11 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
+    setLoading(true);
     fetchAll();
     const t = setInterval(fetchAll, 5000);
     return () => clearInterval(t);
-  }, []);
+  }, [searchQuery, statusFilter]);
 
   async function startExecution() {
     if (!feature.trim()) return;
@@ -183,12 +195,18 @@ export default function Dashboard() {
       const r = await fetch(`${API}/api/executions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feature_request: feature.trim() }),
+        body: JSON.stringify({
+          feature_request: feature.trim(),
+          github_repo: githubRepo.trim() || null,
+          workspace_mode: workspaceMode,
+        }),
       });
       if (r.ok) {
         const { id } = await r.json();
         setShowForm(false);
         setFeature("");
+        setGithubRepo("");
+        setWorkspaceMode("sandbox");
         window.location.href = `/executions/${id}`;
       }
     } finally {
@@ -208,6 +226,31 @@ export default function Dashboard() {
           <PlusIcon />
           New execution
         </Button>
+      </div>
+
+      {/* Search and filters */}
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search executions..."
+          />
+        </div>
+        <div className="w-48">
+          <FilterDropdown
+            label=""
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "running", label: "Running" },
+              { value: "completed", label: "Completed" },
+              { value: "failed", label: "Failed" },
+              { value: "cancelled", label: "Cancelled" },
+            ]}
+            placeholder="All statuses"
+          />
+        </div>
       </div>
 
       {/* New execution form */}
@@ -234,6 +277,27 @@ export default function Dashboard() {
                   className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 resize-none transition-colors"
                   autoFocus
                 />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1.5">GitHub Repository (optional)</label>
+                <input
+                  type="text"
+                  value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  placeholder="e.g. owner/repo"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 block mb-1.5">Workspace Mode</label>
+                <select
+                  value={workspaceMode}
+                  onChange={(e) => setWorkspaceMode(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors"
+                >
+                  <option value="sandbox">Sandbox (local output directory)</option>
+                  <option value="git">Git (clone repo, create PR)</option>
+                </select>
               </div>
               <div className="flex justify-end gap-3">
                 <Button variant="ghost" onClick={() => setShowForm(false)}>

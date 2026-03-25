@@ -3,13 +3,18 @@
 import os
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai.project import CrewBase, agent, task, crew
-from crewai_tools import BraveSearchTool, ScrapeWebsiteTool, FileReadTool, DirectoryReadTool
+from crewai_tools import (
+    BraveSearchTool,
+    ScrapeWebsiteTool,
+    FileReadTool,
+    DirectoryReadTool,
+)
 from dev_workflow import emitter as _emit
 
 
 def _llm(temperature: float = 0.5) -> LLM:
     return LLM(
-        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'minimax-m2.7-highspeed')}",
+        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'MiniMax-M2.1')}",
         api_key=os.getenv("MINIMAX_API_KEY"),
         base_url=os.getenv("MINIMAX_API_BASE", "https://api.minimax.io/v1"),
         temperature=temperature,
@@ -26,10 +31,10 @@ class ResearcherCrew:
 
     def _step_callback(self, step_output) -> None:
         try:
-            if hasattr(step_output, 'output'):
+            if hasattr(step_output, "output"):
                 msg = str(step_output.output)[:300]
-            elif hasattr(step_output, 'return_values'):
-                msg = str(step_output.return_values.get('output', step_output))[:300]
+            elif hasattr(step_output, "return_values"):
+                msg = str(step_output.return_values.get("output", step_output))[:300]
             else:
                 msg = str(step_output)[:300]
             msg = msg.strip()

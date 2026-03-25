@@ -11,7 +11,7 @@ from dev_workflow import emitter as _emit
 
 def _llm(temperature: float = 0.1) -> LLM:
     return LLM(
-        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'minimax-m2.7-highspeed')}",
+        model=f"minimax/{os.getenv('MINIMAX_MODEL', 'MiniMax-M2.1')}",
         api_key=os.getenv("MINIMAX_API_KEY"),
         base_url=os.getenv("MINIMAX_API_BASE", "https://api.minimax.io/v1"),
         temperature=temperature,
@@ -23,12 +23,13 @@ class TestOutput(BaseModel):
     Structured test result — pattern from self_evaluation_loop_flow.
     The Flow's @router reads tests.passed (bool) for reliable routing.
     """
+
     passed: bool
     total_tests: int
     failed_tests: int
-    failures: list[str]   # Each item: "test_name: error message"
-    coverage: float        # 0.0 to 100.0
-    feedback: str          # Actionable summary forwarded to the executor
+    failures: list[str]  # Each item: "test_name: error message"
+    coverage: float  # 0.0 to 100.0
+    feedback: str  # Actionable summary forwarded to the executor
 
 
 @CrewBase
@@ -41,10 +42,10 @@ class TesterCrew:
 
     def _step_callback(self, step_output) -> None:
         try:
-            if hasattr(step_output, 'output'):
+            if hasattr(step_output, "output"):
                 msg = str(step_output.output)[:300]
-            elif hasattr(step_output, 'return_values'):
-                msg = str(step_output.return_values.get('output', step_output))[:300]
+            elif hasattr(step_output, "return_values"):
+                msg = str(step_output.return_values.get("output", step_output))[:300]
             else:
                 msg = str(step_output)[:300]
             msg = msg.strip()

@@ -34,25 +34,27 @@ def run(feature_request: str | None = None, project_path: str = "./output"):
     os.makedirs(project_path, exist_ok=True)
     os.makedirs("logs", exist_ok=True)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🤖 AUTOMATED DEV WORKFLOW")
-    print("="*60)
+    print("=" * 60)
     print(f"Feature: {feature_request}")
     print(f"Output:  {project_path}")
-    print(f"Model:   MiniMax {os.getenv('MINIMAX_MODEL', 'minimax-m2.7-highspeed')}")
-    print("="*60 + "\n")
+    print(f"Model:   MiniMax {os.getenv('MINIMAX_MODEL', 'MiniMax-M2.1')}")
+    print("=" * 60 + "\n")
 
     flow = DevWorkflowFlow()
-    flow.kickoff(inputs={
-        "feature_request": feature_request,
-        "project_path": project_path,
-    })
+    flow.kickoff(
+        inputs={
+            "feature_request": feature_request,
+            "project_path": project_path,
+        }
+    )
 
     # Print final state summary
     state = flow.state
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("📊 WORKFLOW SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Review iterations:  {state.review_iteration}")
     print(f"Test iterations:    {state.test_iteration}")
     print(f"Review passed:      {'✅' if state.review_passed else '❌'}")

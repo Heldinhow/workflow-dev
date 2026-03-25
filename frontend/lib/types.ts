@@ -1,5 +1,5 @@
 export type PhaseId = "research" | "planning" | "execution" | "review" | "testing" | "deployment";
-export type Status = "pending" | "running" | "completed" | "failed" | "escalated";
+export type Status = "pending" | "running" | "completed" | "failed" | "escalated" | "cancelled" | "interrupted";
 
 export interface PhaseStatus {
   name: PhaseId;
@@ -8,6 +8,13 @@ export interface PhaseStatus {
   started_at: string | null;
   completed_at: string | null;
   output: string | null;
+}
+
+export interface TokenUsage {
+  total_tokens?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  estimated_cost_usd?: number;
 }
 
 export interface Execution {
@@ -24,6 +31,14 @@ export interface Execution {
   max_test_retries: number;
   errors: string[];
   log: WorkflowEvent[];
+  token_usage: TokenUsage;
+  cancelled_at: string | null;
+  github_pr_url: string | null;
+  github_branch: string | null;
+  linear_issue_id: string | null;
+  linear_issue_url: string | null;
+  workspace_mode: string;
+  github_repo: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
