@@ -1,412 +1,167 @@
 # Ralph-Loop Commands for workflow-dev
 
-Each command is ready to run with ralph-starter.
+All commands point to Linear issues. Run directly from the project directory.
 
-## How to Use
-
-```bash
-# Run a specific task
-ralph-starter run "TASK_DESCRIPTION" --from ./ISSUE_TASK.md --commit --validate
-
-# Or use auto mode from Linear
-ralph-starter auto --source linear --label "bug" --limit 5
-```
-
----
-
-## HEL-8: Fix Makefile hardcoded path
+## Setup
 
 ```bash
-ralph-starter run "Fix the Makefile to use portable paths instead of hardcoded /Users/helder/Projetos/workflow-dev. Use \$(shell git rev-parse --show-toplevel) to dynamically detect the project root. Make sure 'make api', 'make ui', and 'make dev' work from any directory." --from ./FIX_MAKEFILE.md --commit
-```
-
-**FIX_MAKEFILE.md content:**
-```markdown
-# Fix Makefile Hardcoded Path
-
-## Task
-
-The Makefile in this project has a hardcoded path `/Users/helder/Projetos/workflow-dev` which breaks on other machines.
-
-## Current Problem
-
-```makefile
-api:
-    cd /Users/helder/Projetos/workflow-dev && \
-    source .venv/bin/activate && \
-    uvicorn dev_workflow.api.server:app --reload --port 8000
-```
-
-## Solution
-
-Replace with:
-
-```makefile
-.PHONY: api ui dev
-
-ROOT_DIR := $(shell git rev-parse --show-toplevel 2>/dev/null || pwd)
-
-api:
-    cd $(ROOT_DIR) && \
-    source .venv/bin/activate && \
-    uvicorn dev_workflow.api.server:app --reload --port 8000
-
-ui:
-    cd $(ROOT_DIR)/frontend && npm run dev
-
-dev:
-    @echo "Run in two terminals:"
-    @echo "  Terminal 1: make api"
-    @echo "  Terminal 2: make ui"
-```
-
-## Files to Modify
-
-- Makefile
-
-## Acceptance Criteria
-
-- `make api` works from any directory
-- `make ui` works from any directory
-- `make dev` shows instructions
-```
-
----
-
-## HEL-9: Fix Frontend API empty string
-
-```bash
-ralph-starter run "Fix the frontend API configuration. The const API = '' is empty, making all fetch requests go to /api/* on Next.js server instead of http://localhost:8000. Create next.config.mjs with a proxy for /api/* to http://localhost:8000, then remove the empty API variable and update all fetch calls to use /api/* directly." --from ./FIX_API.md --commit
-```
-
-**FIX_API.md content:**
-```markdown
-# Fix Frontend API Configuration
-
-## Problem
-
-In `frontend/app/page.tsx`, there's:
-```typescript
-const API = "";
-```
-
-This makes `${API}/api/executions` become `/api/executions` (relative to Next.js server, not the backend).
-
-## Solution
-
-1. Create `frontend/next.config.mjs`:
-
-```javascript
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
-      },
-    ];
-  },
-};
-export default nextConfig;
-```
-
-2. Remove `const API = ""` from all files
-3. Update fetch calls from `${API}/api/...` to `/api/...`
-
-## Files to Modify
-
-- `frontend/app/page.tsx` (remove const API = "")
-- `frontend/app/executions/[id]/page.tsx` (same)
-- `frontend/next.config.mjs` (create if not exists)
-
-## Acceptance Criteria
-
-- API requests go to localhost:8000
-- Frontend can fetch executions list
-- Frontend can create new executions
-```
-
----
-
-## HEL-10: Create .env.example
-
-```bash
-ralph-starter run "Create .env.example files with all required environment variables. Root .env.example should have MINIMAX_API_KEY, MINIMAX_MODEL, MINIMAX_API_BASE, BRAVE_API_KEY, API_PORT, API_HOST. Frontend .env.example should have NEXT_PUBLIC_API_URL if needed. Also add .env to .gitignore." --from ./ENV_EXAMPLE.md --commit
-```
-
-**ENV_EXAMPLE.md content:**
-```markdown
-# Create .env.example Files
-
-## Task
-
-Create .env.example files documenting all required environment variables.
-
-## Root .env.example
-
-```env
-# MiniMax LLM (required)
-MINIMAX_API_KEY=your_minimax_api_key_here
-MINIMAX_MODEL=minimax-m2.7-highspeed
-MINIMAX_API_BASE=https://api.minimax.io/v1
-
-# Search (optional)
-BRAVE_API_KEY=your_brave_api_key_here
-
-# Server
-API_PORT=8000
-API_HOST=0.0.0.0
-
-# Database (optional - for development)
-# DATABASE_URL=postgresql://user:pass@localhost:5432/devworkflow
-```
-
-## Frontend .env.example
-
-```env
-# API URL for frontend (optional - defaults to relative)
-# NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-## .gitignore Addition
-
-```
-# Environment
-.env
-.env.local
-.env.*.local
-```
-
-## Files to Create
-
-- `.env.example` (root)
-- `frontend/.env.example`
-
-## Files to Modify
-
-- `.gitignore` (add .env entries)
-```
-
----
-
-## HEL-11: Create README.md
-
-```bash
-ralph-starter run "Create a comprehensive README.md for the workflow-dev project. Include: project description, architecture diagram (text-based), quick start instructions, development setup (make api, make ui), environment variables, API documentation, and feature list. Use proper markdown formatting with badges." --from ./README.md --commit
-```
-
-**README.md content:**
-```markdown
-# Dev Workflow
-
-100% automated AI development workflow using CrewAI + MiniMax.
-
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Dev Workflow Flow                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  💡 Idea → 🔍 Researcher → 📋 Planner →                    │
-│                      │                                      │
-│                      ▼                                      │
-│  🚀 Deploy ← 🧪 Tester ← 👀 Reviewer ←                   │
-│                      │                                      │
-│                      ▼                                      │
-│               💻 Executor                                   │
-│                      │                                      │
-│                      ▼                                      │
-│              ✅ Approved → Next Phase                       │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Quick Start
-
-```bash
-# 1. Clone
+# Clone the repo
 git clone https://github.com/Heldinhow/workflow-dev.git
 cd workflow-dev
 
-# 2. Setup environment
-cp .env.example .env
-# Edit .env with your API keys
-
-# 3. Install
-make setup
-
-# 4. Run
-make dev
+# Configure git (first time)
+git config --global user.name "Your Name"
+git config --global user.email "your@email.com"
 ```
 
-## Development
+## Linear Source Configuration
+
+The Linear CLI is already configured. To use `--from linear`, configure:
 
 ```bash
-make api    # Start FastAPI backend (port 8000)
-make ui     # Start Next.js frontend (port 3000)
-make dev    # Show instructions for running both
-```
+# Set your Linear API key
+linear config set linear.apiKey YOUR_API_KEY
 
-## Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| MINIMAX_API_KEY | MiniMax API key | Yes |
-| MINIMAX_MODEL | Model to use | No (default: minimax-m2.7-highspeed) |
-| BRAVE_API_KEY | Brave Search API key | No |
-
-## API Endpoints
-
-- `GET /api/executions` - List all executions
-- `POST /api/executions` - Create new execution
-- `GET /api/executions/{id}` - Get execution details
-- `GET /api/executions/{id}/events` - SSE stream for execution events
-- `DELETE /api/executions/{id}` - Cancel execution
-
-## Tech Stack
-
-- **Backend**: Python, CrewAI, FastAPI, SSE
-- **Frontend**: Next.js 14, React, Tailwind CSS, TypeScript
+# Test connection
+linear source test linear
 ```
 
 ---
 
-## HEL-12: Add docker-compose.yml
+## Complete Commands (Priority Order)
+
+### 🔴 CRITICAL - Fix These First
 
 ```bash
-ralph-starter run "Add docker-compose.yml for easy local development. Include services for: backend (FastAPI), frontend (Next.js), postgres (for development), and redis (optional). Create Dockerfiles for both backend and frontend. Add docker-compose commands to Makefile." --from ./DOCKER.md --commit
+# HEL-8: Fix Makefile hardcoded path
+ralph-starter run "Fix the Makefile to use portable paths. The current Makefile has hardcoded '/Users/helder/Projetos/workflow-dev'. Use \$(shell git rev-parse --show-toplevel) to dynamically detect project root. Make 'make api', 'make ui', and 'make dev' work from any directory." --from linear --issue 8 --commit --validate
+
+# HEL-9: Fix Frontend API empty string (Frontend can't connect to Backend)
+ralph-starter run "Fix the frontend API configuration. In frontend/app/page.tsx, const API = '' is empty, making all fetch requests go to /api/* on Next.js server instead of http://localhost:8000. Create frontend/next.config.mjs with rewrites proxy for /api/* to http://localhost:8000. Remove the empty API variable and update all fetch calls to use /api/* directly." --from linear --issue 9 --commit --validate
+
+# HEL-11: Create comprehensive README.md
+ralph-starter run "Create a comprehensive README.md for workflow-dev project. Include: project description, architecture diagram (text-based showing the flow: Idea → Researcher → Planner → Executor → Reviewer → Tester → Deployer), quick start instructions (clone, setup .env, make dev), development commands (make api, make ui), environment variables table, API documentation (endpoints), and tech stack. Use proper markdown with badges." --from linear --issue 11 --commit
 ```
 
-**DOCKER.md content:**
-```markdown
-# Add Docker Compose for Local Development
+### 🟡 HIGH PRIORITY
 
-## Task
+```bash
+# HEL-10: Create .env.example files
+ralph-starter run "Create .env.example files documenting all required environment variables. Root .env.example should have: MINIMAX_API_KEY, MINIMAX_MODEL (default: minimax-m2.7-highspeed), MINIMAX_API_BASE (https://api.minimax.io/v1), BRAVE_API_KEY (optional), API_PORT (8000), API_HOST (0.0.0.0). Frontend .env.example should document NEXT_PUBLIC_API_URL if needed. Also add .env entries to .gitignore." --from linear --issue 10 --commit
 
-Create Docker-based development environment.
+# HEL-16: Increase test coverage
+ralph-starter run "Increase test coverage for workflow-dev. Currently only 2 basic tests exist. Add pytest.ini configuration. Create tests/conftest.py with fixtures for mocking crews, API client, and state. Add comprehensive tests for: all 6 crews (researcher, planner, executor, reviewer, tester, deployer), API endpoints in tests/test_api.py, state transitions in tests/test_state.py, and emitter pattern in tests/test_emitter.py." --from linear --issue 16 --commit --validate
 
-## docker-compose.yml
-
-```yaml
-version: '3.8'
-
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    ports:
-      - "8000:8000"
-    environment:
-      - MINIMAX_API_KEY=\${MINIMAX_API_KEY}
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/workflow
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - .:/app
-    command: uvicorn dev_workflow.api.server:app --reload --host 0.0.0.0 --port 8000
-
-  ui:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.ui
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=workflow
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-volumes:
-  postgres_data:
+# HEL-12: Add docker-compose.yml
+ralph-starter run "Add docker-compose.yml for easy local development. Create services for: api (FastAPI on port 8000), ui (Next.js on port 3000), postgres (for development), redis (optional). Create Dockerfile.api and Dockerfile.ui. Add docker-up, docker-down, docker-logs targets to Makefile. Use environment variables for configuration." --from linear --issue 12 --commit
 ```
 
-## Files to Create
+### 🟢 MEDIUM PRIORITY
 
-- `docker-compose.yml`
-- `Dockerfile.api`
-- `Dockerfile.ui`
-- `.dockerignore`
+```bash
+# HEL-13: Replace polling with SSE
+ralph-starter run "Replace setInterval polling with SSE in the frontend. The backend already supports SSE at /api/executions/{id}/events. Create frontend/lib/sse.ts with useExecutionEvents hook using EventSource. Update frontend/app/page.tsx and frontend/app/executions/[id]/page.tsx to use the hook instead of setInterval(fetchAll, 5000)." --from linear --issue 13 --commit --validate
 
-## Makefile Additions
+# HEL-14: Add React Error Boundary
+ralph-starter run "Add React Error Boundary to the frontend. Create frontend/components/ErrorBoundary.tsx with proper error handling UI. Wrap the app in frontend/app/layout.tsx with the ErrorBoundary. Show user-friendly error message with retry button when errors occur." --from linear --issue 14 --commit
 
-```makefile
-docker-up:
-    docker-compose up -d
-
-docker-down:
-    docker-compose down
-
-docker-logs:
-    docker-compose logs -f
+# HEL-15: Add GitHub Actions CI/CD
+ralph-starter run "Add GitHub Actions CI/CD pipeline. Create .github/workflows/ci.yml with jobs for: lint (Python ruff, JS ESLint), type check (mypy for Python, tsc for TypeScript), backend tests (pytest), frontend build check (npm run build). Add pull_request and push triggers. Use matrix strategy for Python versions." --from linear --issue 15 --commit
 ```
+
+### ⚪ LOW PRIORITY
+
+```bash
+# HEL-17: Add .editorconfig
+ralph-starter run "Add .editorconfig for consistent formatting across editors. Settings for: Python files (indent_size=4), TypeScript/JS files (indent_size=2), YAML files (indent_size=2), markdown files (indent_size=2), end_of_line=lf, charset=utf-8, trim_trailing_whitespace=true." --from linear --issue 17 --commit
 ```
 
 ---
 
-## Running All Issues
+## Batch Commands
 
-### Option 1: Run specific issues by number
+### Run all CRITICAL issues:
 ```bash
-ralph-starter run "Fix HEL-8: Fix Makefile hardcoded path..." --from ./FIX_MAKEFILE.md --commit
-ralph-starter run "Fix HEL-9: Fix Frontend API..." --from ./FIX_API.md --commit
-# etc.
+ralph-starter run "Fix HEL-8: Fix the Makefile to use portable paths..." --from linear --issue 8 --commit --validate && \
+ralph-starter run "Fix HEL-9: Fix the frontend API empty string..." --from linear --issue 9 --commit --validate && \
+ralph-starter run "Create HEL-11: Comprehensive README.md..." --from linear --issue 11 --commit
 ```
 
-### Option 2: Auto mode from Linear
+### Run with Auto Mode:
 ```bash
-# Get all "Bug" labeled issues
-ralph-starter auto --source linear --label "bug" --limit 10
+# Process all Bug labeled issues
+ralph-starter auto --source linear --label "bug" --limit 5 --commit --validate
 
-# Get all "Improvement" labeled issues  
-ralph-starter auto --source linear --label "Improvement" --limit 10
+# Process all Improvement labeled issues
+ralph-starter auto --source linear --label "Improvement" --limit 10 --commit
+
+# Process all issues
+ralph-starter auto --source linear --limit 20 --commit
 ```
 
-### Option 3: Sequential by priority
+### Sequential by Priority:
 ```bash
 # Priority 1 (CRITICAL)
-ralph-starter run "Fix the Makefile hardcoded path issue" --from ./FIX_MAKEFILE.md --commit --validate
-ralph-starter run "Fix the frontend API empty string issue" --from ./FIX_API.md --commit --validate
+ralph-starter run "$(cat << 'EOF'
+Fix HEL-8 and HEL-9 in this task:
+1. HEL-8: Replace Makefile hardcoded '/Users/helder/Projetos/workflow-dev' with \$(shell git rev-parse --show-toplevel)
+2. HEL-9: Create frontend/next.config.mjs with API proxy, remove empty const API = '', update fetch calls
+Commit after each fix.
+EOF
+)" --from linear --label "bug" --commit --validate --max-iterations 40
 
 # Priority 2
-ralph-starter run "Create .env.example files" --from ./ENV_EXAMPLE.md --commit
-ralph-starter run "Create comprehensive README.md" --from ./README.md --commit
-ralph-starter run "Increase test coverage" --from ./TESTS.md --commit
-
-# Priority 3
-ralph-starter run "Add docker-compose.yml" --from ./DOCKER.md --commit
-ralph-starter run "Replace polling with SSE" --from ./SSE.md --commit
-# etc.
+ralph-starter run "$(cat << 'EOF'
+Complete HEL-10, HEL-11, HEL-16:
+1. HEL-10: Create .env.example files for root and frontend
+2. HEL-11: Create comprehensive README.md with badges, architecture diagram, quick start
+3. HEL-16: Add pytest.ini, conftest.py, and comprehensive tests
+EOF
+)" --from linear --label "Improvement" --commit --validate --max-iterations 50
 ```
+
+---
+
+## Quick Start (Copy & Paste)
+
+```bash
+# 1. Clone
+git clone https://github.com/Heldinhow/workflow-dev.git && cd workflow-dev
+
+# 2. Fix Critical Issues
+ralph-starter run "Fix HEL-8: Replace hardcoded Makefile path with \$(shell git rev-parse --show-toplevel)" --from linear --issue 8 --commit --validate
+ralph-starter run "Fix HEL-9: Create next.config.mjs with API proxy, fix frontend fetch calls" --from linear --issue 9 --commit --validate
+ralph-starter run "Create HEL-11: README.md with architecture, quick start, API docs" --from linear --issue 11 --commit
+
+# 3. High Priority
+ralph-starter run "HEL-10: Create .env.example files" --from linear --issue 10 --commit
+ralph-starter run "HEL-16: Add pytest.ini, conftest.py, comprehensive tests" --from linear --issue 16 --commit --validate
+ralph-starter run "HEL-12: Add docker-compose.yml, Dockerfiles" --from linear --issue 12 --commit
+
+# 4. Medium Priority
+ralph-starter run "HEL-13: Replace polling with SSE hook" --from linear --issue 13 --commit --validate
+ralph-starter run "HEL-14: Add React Error Boundary" --from linear --issue 14 --commit
+ralph-starter run "HEL-15: Add GitHub Actions CI/CD" --from linear --issue 15 --commit
+
+# 5. Low Priority
+ralph-starter run "HEL-17: Add .editorconfig" --from linear --issue 17 --commit
+```
+
+---
+
+## Labels Available
+
+| Label | Color | Issues |
+|-------|-------|--------|
+| Bug | Red | HEL-8, HEL-9 |
+| Improvement | Blue | HEL-10, HEL-11, HEL-12, HEL-13, HEL-14, HEL-15, HEL-16, HEL-17 |
 
 ---
 
 ## Notes
 
-- All commands use `--commit` to auto-commit changes
+- All commands use `--commit` for auto-commits
 - Add `--validate` for tests/lint validation
-- Add `--push` to push to remote after commit
-- Use `--max-iterations 30` for larger tasks
+- Add `--push` to push commits immediately
+- Use `--max-iterations 30-50` for larger tasks
+- The `--from linear` flag fetches issue details automatically
