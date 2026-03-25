@@ -1,30 +1,34 @@
-# workflow-dev Development Guidelines
+# AGENTS.md - Ralph Agent Configuration
 
-Auto-generated from all feature plans. Last updated: 2026-03-24
+This file configures how ralph-starter runs coding agents.
 
-## Active Technologies
+## OpenCode Agent
 
-- Python 3.11+ + CrewAI 0.100.0+, FastAPI, SQLModel, Pydantic v2, Next.js 14, React, TailwindCSS (001-issue-implementation-plan)
+To use opencode directly (not the SDK), set the AGENT_CMD environment variable:
 
-## Project Structure
-
-```text
-backend/
-frontend/
-tests/
+```bash
+export AGENT_CMD="opencode run --"
 ```
 
-## Commands
+Or create this agents.json:
 
-cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
+```json
+{
+  "agents": {
+    "opencode": {
+      "command": "opencode run --",
+      "description": "OpenCode CLI with -- separator"
+    }
+  }
+}
+```
 
-## Code Style
+## Alternative: Use Claude Code instead
 
-Python 3.11+: Follow standard conventions
+If OpenCode continues to have issues, use Claude Code:
 
-## Recent Changes
+```bash
+ralph-starter run --from github --project Heldinhow/workflow-dev --issue 21 --agent claude-code --commit
+```
 
-- 001-issue-implementation-plan: Added Python 3.11+ + CrewAI 0.100.0+, FastAPI, SQLModel, Pydantic v2, Next.js 14, React, TailwindCSS
-
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+Claude Code is the recommended agent in ralph-starter and tends to work more reliably.
