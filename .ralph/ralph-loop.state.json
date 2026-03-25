@@ -1,0 +1,13 @@
+{
+  "active": true,
+  "iteration": 1,
+  "minIterations": 1,
+  "maxIterations": 25,
+  "completionPromise": "COMPLETE",
+  "tasksMode": false,
+  "taskPromise": "READY_FOR_NEXT_TASK",
+  "prompt": "Increase test coverage for workflow-dev. Currently only 2 basic tests exist. 1) Add pytest.ini with testpaths=tests, python_files=test_*.py. 2) Create tests/conftest.py with fixtures for mocking crews (researcher, planner, executor, reviewer, tester, deployer), API client, and state. 3) Add tests/test_api.py for API endpoints. 4) Add tests/test_crews.py for all 6 crews. 5) Add tests/test_state.py for state transitions. 6) Add tests/test_emitter.py for emitter pattern. Output COMPLETE when done.",
+  "startedAt": "2026-03-25T14:09:12.621Z",
+  "model": "",
+  "agent": "opencode"
+}
