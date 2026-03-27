@@ -473,11 +473,11 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
         return True
 
     def _is_cancelled(self) -> bool:
-        """Check if execution was cancelled via store."""
+        """Check if execution was cancelled or interrupted (e.g. server shutdown)."""
         from dev_workflow.api import store
 
         ex = store.get(self.state.execution_id)
-        if ex and ex.get("status") == "cancelled":
+        if ex and ex.get("status") in ("cancelled", "interrupted"):
             return True
         return False
 
