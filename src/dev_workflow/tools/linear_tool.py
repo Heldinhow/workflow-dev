@@ -2,7 +2,7 @@
 
 import os
 import requests
-from typing import Optional, ClassVar
+from typing import ClassVar
 from crewai.tools import BaseTool
 
 

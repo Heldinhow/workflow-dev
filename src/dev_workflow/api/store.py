@@ -26,7 +26,6 @@ def _get_session():
 
 def init_db():
     """Create tables if they don't exist."""
-    from dev_workflow.models import Execution, ExecutionPhase
     from sqlmodel import SQLModel
 
     SQLModel.metadata.create_all(engine)

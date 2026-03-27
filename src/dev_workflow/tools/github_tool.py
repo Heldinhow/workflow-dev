@@ -1,7 +1,6 @@
 """GitHub API integration tool for creating branches, commits, and PRs."""
 
 import os
-from typing import Optional
 from crewai.tools import BaseTool
 
 

@@ -1,6 +1,5 @@
 """Tests for all 6 crews — researcher, planner, executor, reviewer, tester, deployer."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
 

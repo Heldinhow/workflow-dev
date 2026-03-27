@@ -1,8 +1,7 @@
 """Tests for API endpoints."""
 
 import pytest
-import json
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 
@@ -199,5 +198,5 @@ class TestAPIStoreIntegration:
             mock_phase.name = "research"
             mock_exec.phases = [mock_phase]
             mock_session.return_value.__enter__.return_value.exec.return_value.first.return_value = mock_exec
-            with patch.object(store, "Session") as mock_session_cls:
+            with patch.object(store, "Session") as _mock_session_cls:
                 pass

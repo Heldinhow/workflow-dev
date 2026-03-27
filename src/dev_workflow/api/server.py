@@ -3,7 +3,6 @@
 import asyncio
 import json
 import logging
-import os
 import queue
 import signal
 import sys
@@ -12,7 +11,7 @@ import uuid
 from datetime import datetime
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -26,8 +25,8 @@ from prometheus_client import (
 
 load_dotenv()
 
-from dev_workflow.api import store
-from dev_workflow import emitter
+from dev_workflow.api import store  # noqa: E402
+from dev_workflow import emitter  # noqa: E402
 
 
 def _json_log(level: str, event: str, **kwargs) -> None:

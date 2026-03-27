@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Load .env from project root
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
-from dev_workflow.flow import DevWorkflowFlow
+from dev_workflow.flow import DevWorkflowFlow  # noqa: E402
 
 
 def run(feature_request: str | None = None, project_path: str = "./output"):
@@ -61,7 +61,7 @@ def run(feature_request: str | None = None, project_path: str = "./output"):
     print(f"Tests passed:       {'✅' if state.tests_passed else '❌'}")
     print(f"Deployed:           {'✅' if state.deploy_succeeded else '❌'}")
     if state.errors:
-        print(f"\nErrors encountered:")
+        print("\nErrors encountered:")
         for err in state.errors:
             print(f"  - {err}")
     print("\nTimestamps:")
