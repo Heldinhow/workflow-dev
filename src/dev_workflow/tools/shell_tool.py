@@ -1,5 +1,6 @@
 """Custom Shell execution tool for running tests, linters, and build commands."""
 
+import shlex
 import subprocess
 from typing import Optional, Type
 from crewai.tools import BaseTool
@@ -7,9 +8,15 @@ from pydantic import BaseModel, Field
 
 
 class ShellCommandInput(BaseModel):
-    command: str = Field(..., description="The shell command to execute (e.g. 'pytest -v', 'npm test')")
-    working_dir: Optional[str] = Field(None, description="Working directory path. Defaults to CWD.")
-    timeout: int = Field(60, description="Timeout in seconds before the command is killed.")
+    command: str = Field(
+        ..., description="The shell command to execute (e.g. 'pytest -v', 'npm test')"
+    )
+    working_dir: Optional[str] = Field(
+        None, description="Working directory path. Defaults to CWD."
+    )
+    timeout: int = Field(
+        60, description="Timeout in seconds before the command is killed."
+    )
 
 
 class ShellTool(BaseTool):
@@ -30,8 +37,8 @@ class ShellTool(BaseTool):
     ) -> str:
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                shlex.split(command),
+                shell=False,
                 capture_output=True,
                 text=True,
                 cwd=working_dir,
