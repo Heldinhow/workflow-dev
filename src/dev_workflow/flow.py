@@ -115,8 +115,8 @@ class FileWriter:
             rf"^#\s*file:\s*(.+\.{lang})$",
             rf"^//\s*file:\s*(.+\.{lang})$",
             rf"^/\*\s*file:\s*(.+\.{lang})$",
-            rf"^#\s*path:\s*(.+)$",
-            rf"^//\s*path:\s*(.+)$",
+            r"^#\s*path:\s*(.+)$",
+            r"^//\s*path:\s*(.+)$",
             r"^(\S+\.\w+)$",
         ]
         for pat in patterns:
@@ -314,7 +314,7 @@ class DevWorkflowFlow(Flow[DevWorkflowState]):
             "deployment",
             "Deployment successful",
         )
-        print(f"\n✅ WORKFLOW COMPLETE — Deployment successful!")
+        print("\n✅ WORKFLOW COMPLETE — Deployment successful!")
 
     # ─────────────────────────────────────────────────────────────────────────
     # ESCALATION — max retries exhausted
