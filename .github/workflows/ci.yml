@@ -61,7 +61,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: null
       - run: uv sync
-      - run: uv pytest tests/
+      - run: uv run pytest tests/
 
   build-frontend:
     runs-on: ubuntu-latest

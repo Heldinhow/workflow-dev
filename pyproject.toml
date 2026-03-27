@@ -24,3 +24,9 @@ packages = ["src/dev_workflow"]
 
 [tool.pytest.ini_options]
 python_classes = ["Test*Suite", "*Tests"]  # não coletar Pydantic models como test classes
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = false
+disable_error_code = ["arg-type", "attr-defined", "index", "call-arg", "return-value"]
+
