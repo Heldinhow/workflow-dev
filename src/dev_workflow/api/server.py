@@ -3,15 +3,15 @@
 import asyncio
 import json
 import logging
-import os
 import queue
+import signal
 import sys
 import threading
 import uuid
 from datetime import datetime
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -25,8 +25,8 @@ from prometheus_client import (
 
 load_dotenv()
 
-from dev_workflow.api import store
-from dev_workflow import emitter
+from dev_workflow.api import store  # noqa: E402
+from dev_workflow import emitter  # noqa: E402
 
 
 def _json_log(level: str, event: str, **kwargs) -> None:
@@ -73,6 +73,12 @@ API_REQUEST_DURATION = Histogram(
     ["endpoint"],
     buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 5.0],
 )
+
+# ── Shutdown state ────────────────────────────────────────────────────────────
+_shutdown_event = threading.Event()
+_active_threads: dict[str, threading.Thread] = {}
+_thread_lock = threading.Lock()
+SHUTDOWN_TIMEOUT = 30  # seconds to wait for in-flight threads
 
 # ── SSE subscriber registry ───────────────────────────────────────────────────
 # execution_id → list of thread-safe queues (one per connected browser tab)
@@ -200,10 +206,68 @@ emitter.register(_on_event)
 app = FastAPI(title="Dev Workflow API", version="1.0.0")
 
 
+def _handle_shutdown(signum, frame) -> None:
+    """Signal handler for SIGTERM/SIGINT — initiates graceful shutdown."""
+    signame = signal.Signals(signum).name
+    _json_log("INFO", "shutdown_requested", signal=signame)
+    _shutdown_event.set()
+
+
 @app.on_event("startup")
 def on_startup():
     store.init_db()
     _recover_orphaned_executions()
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+    _json_log("INFO", "server_started", message="Signal handlers registered")
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    _graceful_shutdown()
+
+
+def _graceful_shutdown() -> None:
+    """Mark running executions as interrupted and wait for threads to finish."""
+    _json_log("INFO", "graceful_shutdown_started")
+    _shutdown_event.set()
+
+    # Mark all running executions as interrupted and close their SSE streams
+    executions = store.list_all()
+    running = [ex for ex in executions if ex.get("status") == "running"]
+    for ex in running:
+        execution_id = ex["id"]
+        store.update(
+            execution_id,
+            status="interrupted",
+            completed_at=datetime.now().isoformat(),
+            errors=["Execution interrupted: server shutdown"],
+        )
+        with _sse_lock:
+            qs = list(_sse_queues.get(execution_id, []))
+        for q in qs:
+            q.put(None)
+        _json_log("INFO", "execution_interrupted", execution_id=execution_id)
+
+    # Wait for active threads to finish
+    with _thread_lock:
+        threads = list(_active_threads.items())
+
+    for execution_id, thread in threads:
+        if thread.is_alive():
+            _json_log(
+                "INFO",
+                "waiting_for_thread",
+                execution_id=execution_id,
+                timeout=SHUTDOWN_TIMEOUT,
+            )
+            thread.join(timeout=SHUTDOWN_TIMEOUT)
+            if thread.is_alive():
+                _json_log(
+                    "WARNING", "thread_did_not_stop", execution_id=execution_id
+                )
+
+    _json_log("INFO", "graceful_shutdown_complete")
 
 
 def _recover_orphaned_executions() -> None:
@@ -280,6 +344,8 @@ def start_execution(req: StartRequest):
         ),
         daemon=True,
     )
+    with _thread_lock:
+        _active_threads[execution_id] = thread
     thread.start()
     return {"id": execution_id}
 
@@ -328,6 +394,8 @@ def _run_workflow(
     except Exception as exc:
         emitter.emit(execution_id, "execution_failed", "", f"Workflow error: {exc}")
     finally:
+        with _thread_lock:
+            _active_threads.pop(execution_id, None)
         # Sentinel to close SSE streams
         with _sse_lock:
             qs = list(_sse_queues.get(execution_id, []))

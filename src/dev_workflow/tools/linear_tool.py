@@ -1,8 +1,8 @@
 """Linear API integration tool for creating and updating issues."""
 
 import os
-import requests
-from typing import Optional, ClassVar
+import requests  # type: ignore[import-untyped]
+from typing import ClassVar
 from crewai.tools import BaseTool
 
 
@@ -31,19 +31,19 @@ class LinearTool(BaseTool):
         """
         if action == "create_issue":
             return self._create_issue(
-                kwargs.get("team_id"),
-                kwargs.get("title"),
+                kwargs.get("team_id"),  # type: ignore[arg-type]
+                kwargs.get("title"),  # type: ignore[arg-type]
                 kwargs.get("description", ""),
             )
         elif action == "update_status":
             return self._update_status(
-                kwargs.get("issue_id"),
-                kwargs.get("state"),
+                kwargs.get("issue_id"),  # type: ignore[arg-type]
+                kwargs.get("state"),  # type: ignore[arg-type]
             )
         elif action == "add_comment":
             return self._add_comment(
-                kwargs.get("issue_id"),
-                kwargs.get("body"),
+                kwargs.get("issue_id"),  # type: ignore[arg-type]
+                kwargs.get("body"),  # type: ignore[arg-type]
             )
         else:
             return {"error": f"Unknown action: {action}"}
@@ -58,7 +58,7 @@ class LinearTool(BaseTool):
             "Content-Type": "application/json",
         }
 
-    def _graphql(self, query: str, variables: dict = None) -> dict:
+    def _graphql(self, query: str, variables: dict | None = None) -> dict:
         """Execute a GraphQL query against Linear API."""
         response = requests.post(
             self.LINEAR_API_URL,

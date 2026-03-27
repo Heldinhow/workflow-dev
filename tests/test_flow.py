@@ -5,8 +5,7 @@ Strategy: mock all 6 Crew.kickoff() calls — zero real LLM calls.
 Each test scenario exercises a different routing path through the flow.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 from dev_workflow.flow import DevWorkflowFlow
 from dev_workflow.crews.reviewer.crew import ReviewOutput
@@ -340,7 +339,7 @@ def test_parse_review_rejects_tool_call_json():
     )
     result = flow._parse_review(tool_call_json)
 
-    assert result["passed"] == False, "Tool call JSON should be rejected"
+    assert not result["passed"], "Tool call JSON should be rejected"
     assert "Malformed review output" in result["feedback"], (
         "Should indicate parsing error"
     )
@@ -355,6 +354,6 @@ def test_parse_review_accepts_valid_json():
     )
     result = flow._parse_review(valid_json)
 
-    assert result["passed"] == True
+    assert result["passed"]
     assert result["severity"] == "none"
     assert result["feedback"] == "LGTM"

@@ -1,7 +1,6 @@
 """GitHub API integration tool for creating branches, commits, and PRs."""
 
 import os
-from typing import Optional
 from crewai.tools import BaseTool
 
 
@@ -29,21 +28,21 @@ class GitHubTool(BaseTool):
         """
         if action == "create_branch":
             return self._create_branch(
-                kwargs.get("branch_name"),
-                kwargs.get("repo"),
+                kwargs.get("branch_name"),  # type: ignore[arg-type]
+                kwargs.get("repo"),  # type: ignore[arg-type]
             )
         elif action == "commit_files":
             return self._commit_files(
-                kwargs.get("branch_name"),
-                kwargs.get("repo"),
-                kwargs.get("message"),
+                kwargs.get("branch_name"),  # type: ignore[arg-type]
+                kwargs.get("repo"),  # type: ignore[arg-type]
+                kwargs.get("message"),  # type: ignore[arg-type]
                 kwargs.get("files", {}),
             )
         elif action == "create_pr":
             return self._create_pr(
-                kwargs.get("branch_name"),
-                kwargs.get("repo"),
-                kwargs.get("title"),
+                kwargs.get("branch_name"),  # type: ignore[arg-type]
+                kwargs.get("repo"),  # type: ignore[arg-type]
+                kwargs.get("title"),  # type: ignore[arg-type]
                 kwargs.get("body", ""),
                 kwargs.get("base", "main"),
             )

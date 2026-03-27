@@ -4,7 +4,6 @@ MiniMax API rejects 'system' role messages, so we convert them to 'user' role.
 """
 
 import json
-from typing import Any
 import httpx
 from crewai.llms.hooks.base import BaseInterceptor
 
