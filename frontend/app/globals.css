@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: dark light;
   
   --bg-primary: #09090b;
   --bg-secondary: #18181b;
@@ -32,6 +32,23 @@
   --glow-danger: 0 0 20px rgba(239, 68, 68, 0.15);
 }
 
+[data-theme="light"],
+.light {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+  --bg-elevated: #d4d4d8;
+  --text-primary: #09090b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --border-color: #e4e4e7;
+  --border-hover: #d4d4d8;
+  --glow-accent: 0 0 20px rgba(99, 102, 241, 0.1);
+  --glow-success: 0 0 20px rgba(16, 185, 129, 0.1);
+  --glow-danger: 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -42,6 +59,7 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Scrollbar */
@@ -138,6 +156,9 @@ html {
   background: rgba(24, 24, 27, 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+.light .glass {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 /* Gradient backgrounds */
